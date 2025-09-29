@@ -1,0 +1,25 @@
+---
+- name: 复制 cadvisor daemonset 部署文件
+  copy:
+    src: "files/cadvisor-daemonset.yaml"
+    dest: "/tmp/cadvisor-daemonset.yaml"
+  run_once: true
+
+- name: 复制 cadvisor service 部署文件
+  copy:
+    src: "files/cadvisor-service.yaml"
+    dest: "/tmp/cadvisor-service.yaml"
+  run_once: true
+
+- name: 部署 cadvisor daemonset
+  kubernetes.core.k8s:
+    src: "/tmp/cadvisor-daemonset.yaml"
+    state: present
+  run_once: true
+
+- name: 部署 cadvisor service
+  kubernetes.core.k8s:
+    src: "/tmp/cadvisor-service.yaml"
+    state: present
+  run_once: true
+

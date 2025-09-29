@@ -1,0 +1,20 @@
+---
+- name: 创建临时目录存放镜像
+  file:
+    path: "/tmp/images"
+    state: directory
+    mode: '0755'
+
+- name: 复制 crossplane 镜像文件到临时目录
+  copy:
+    src: "{{ playbook_dir }}/images/{{ ansible_architecture }}/crossplane-1.19.1.tar"
+    dest: "/tmp/crossplane-1.19.1.tar"
+    mode: 0644
+
+- name: 加载 crossplane 镜像到Docker
+  shell: "docker load -i /tmp/crossplane-1.19.1.tar"
+
+
+
+
+

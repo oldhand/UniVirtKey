@@ -1,0 +1,89 @@
+---
+
+- name: Create remote temporary directory
+  file:
+    path: "/tmp/crossplane_offline_install"
+    state: directory
+    mode: '0755'
+  run_once: true
+
+- name: Transfer Crossplane Helm Chart to remote node
+  copy:
+    src: "files/crossplane-1.19.1.tgz"
+    dest: "/tmp/crossplane_offline_install/crossplane-1.19.1.tgz"
+    mode: '0644'
+  run_once: true
+
+- name: Transfer crossplane.yaml to remote node
+  copy:
+    src: "files/crossplane.yaml"
+    dest: "/tmp/crossplane_offline_install/crossplane.yaml"
+    mode: '0644'
+  run_once: true
+
+- name: 创建 crossplane-system 命名空间
+  kubernetes.core.k8s:
+    name: crossplane-system
+    kind: Namespace
+    api_version: v1
+    state: present
+  run_once: true
+
+# 卸载Crossplane的任务
+- name: Uninstall Crossplane using Helm
+  command: >
+    /usr/local/bin/helm uninstall crossplane --namespace crossplane-system
+  register: uninstall_crossplane
+  changed_when: "'uninstalled' in uninstall_crossplane.stdout"
+  failed_when:
+    - uninstall_crossplane.rc != 0
+    - "'not found' not in uninstall_crossplane.stderr"
+  run_once: true
+
+- name: 清理 crossplane-system 命名空间下的所有 Job
+  kubernetes.core.k8s:
+    kind: Job
+    namespace: crossplane-system
+    state: absent
+    all: true  # 删除该命名空间下所有 Jobs
+  run_once: true
+
+- name: 清理 crossplane-system 命名空间下的所有 Pod
+  kubernetes.core.k8s:
+    kind: Pod
+    namespace: crossplane-system
+    state: absent
+    all: true  # 删除该命名空间下所有 Pods
+  run_once: true
+
+- name: Install Crossplane from local Helm Chart
+  command: >
+    /usr/local/bin/helm install crossplane /tmp/crossplane_offline_install/crossplane-1.19.1.tgz \
+    --namespace crossplane-system \
+    --create-namespace \
+    -f /tmp/crossplane_offline_install/crossplane.yaml
+  register: install_crossplane
+  changed_when: "'installed' in install_crossplane.stdout"
+  failed_when:
+    - install_crossplane.rc != 0
+    - "'already exists' not in install_crossplane.stderr"
+  run_once: true
+
+
+- name: Verify Crossplane installation
+  command: "/usr/bin/kubectl get pods -n crossplane-system"
+  register: verify_install
+  changed_when: false
+  run_once: true
+
+- name: Display Crossplane pods status
+  debug:
+    msg: "{{ verify_install.stdout_lines }}"
+  run_once: true
+
+- name: Clean up temporary files
+  file:
+    path: "/tmp/crossplane_offline_install/"
+    state: absent
+  when: "'cleanup' not in ansible_run_tags"
+  run_once: true

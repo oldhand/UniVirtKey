@@ -1,0 +1,17 @@
+---
+- name: 创建临时目录存放镜像
+  file:
+    path: "/tmp/images"
+    state: directory
+    mode: '0755'
+
+- name: 复制 cadvisor 镜像文件到临时目录
+  copy:
+    src: "{{ playbook_dir }}/images/{{ ansible_architecture }}/cadvisor.tar"
+    dest: "/tmp/cadvisor.tar"
+    mode: 0644
+
+- name: 加载 cadvisor 镜像到Docker
+  shell: "docker load -i /tmp/cadvisor.tar"
+
+

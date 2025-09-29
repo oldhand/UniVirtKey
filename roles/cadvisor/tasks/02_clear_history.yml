@@ -1,0 +1,12 @@
+#---
+- name: 清理 Prometheus 资源(有命名空间)
+  ansible.builtin.shell: |
+    kubectl get {{ item.kind }} -n kube-system --no-headers -o custom-columns=":metadata.name" \
+    | grep -E "^{{ item.name }}" \
+    | xargs --no-run-if-empty kubectl delete {{ item.kind }} -n kube-system --ignore-not-found
+  loop:
+    - { kind: DaemonSet, name: "cadvisor" }
+    - { kind: Pod, name: "cadvisor" }
+    - { kind: Service, name: "cadvisor" }
+  failed_when: false
+  run_once: true

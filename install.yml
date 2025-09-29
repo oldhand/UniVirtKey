@@ -1,0 +1,12 @@
+---
+- hosts: k8s
+  gather_facts: true
+  roles:
+#    # Install volcano for k8s
+    - volcano
+#    # Install crossplane for k8s
+    - crossplane
+#    # Install cadvisor for k8s
+    - cadvisor
+
+

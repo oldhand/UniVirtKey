@@ -1,0 +1,96 @@
+---
+
+- name: Create remote temporary directory
+  file:
+    path: "/tmp/volcano_offline_install"
+    state: directory
+    mode: '0755'
+  run_once: true
+
+- name: Transfer Volcano Helm Chart to remote node
+  copy:
+    src: "files/volcano-1.11.2.tgz"
+    dest: "/tmp/volcano_offline_install/volcano-1.11.2.tgz"
+    mode: '0644'
+  run_once: true
+
+- name: Transfer volcano.yaml to remote node
+  copy:
+    src: "files/volcano.yaml"
+    dest: "/tmp/volcano_offline_install/volcano.yaml"
+    mode: '0644'
+  run_once: true
+
+- name: 创建 volcano-system 命名空间
+  kubernetes.core.k8s:
+    name: volcano-system
+    kind: Namespace
+    api_version: v1
+    state: present
+  run_once: true
+
+# 卸载Volcano的任务
+- name: Uninstall Volcano using Helm
+  command: >
+    /usr/local/bin/helm uninstall volcano --namespace volcano-system
+  register: uninstall_volcano
+  changed_when: "'uninstalled' in uninstall_volcano.stdout"
+  failed_when:
+    - uninstall_volcano.rc != 0
+    - "'not found' not in uninstall_volcano.stderr"
+  run_once: true
+
+- name: 清理 volcano-system 命名空间下的所有 Job
+  kubernetes.core.k8s:
+    kind: Job
+    namespace: volcano-system
+    state: absent
+    wait: yes
+    all: true  # 删除该命名空间下所有 Jobs
+  run_once: true
+
+- name: 清理 volcano-system 命名空间下的所有 Pod
+  kubernetes.core.k8s:
+    kind: Pod
+    namespace: volcano-system
+    state: absent
+    wait: yes
+    all: true  # 删除该命名空间下所有 Pods
+  run_once: true
+
+- name: Install Volcano from local Helm Chart
+  command: >
+    /usr/local/bin/helm install volcano /tmp/volcano_offline_install/volcano-1.11.2.tgz \
+      --namespace volcano-system \
+      --create-namespace \
+      -f /tmp/volcano_offline_install/volcano.yaml
+  register: install_volcano
+  changed_when: "'installed' in install_volcano.stdout"
+  failed_when:
+    - install_volcano.rc != 0
+    - "'already exists' not in install_volcano.stderr"
+  run_once: true
+
+- name: Wait for Volcano components to be ready
+  command: "/usr/bin/kubectl wait --for=condition=ready pod -l \"app in (volcano-admission,volcano-controller,volcano-scheduler)\" -n volcano-system --timeout=300s"
+  register: wait_for_volcano
+  changed_when: false
+  run_once: true
+
+- name: Verify Volcano installation
+  command: "/usr/bin/kubectl get pods -n volcano-system"
+  register: verify_install
+  changed_when: false
+  run_once: true
+
+- name: Display Volcano pods status
+  debug:
+    msg: "{{ verify_install.stdout_lines }}"
+  run_once: true
+
+- name: Clean up temporary files
+  file:
+    path: "/tmp/volcano_offline_install/"
+    state: absent
+  when: "'cleanup' not in ansible_run_tags"
+  run_once: true

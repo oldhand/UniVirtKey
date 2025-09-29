@@ -1,0 +1,11 @@
+# 自定义配置文件
+tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: Exists
+    effect: NoSchedule
+
+rbacManager:
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: Exists
+      effect: NoSchedule
