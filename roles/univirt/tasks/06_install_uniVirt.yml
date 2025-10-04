@@ -1,0 +1,60 @@
+---
+
+- name: 创建目录 /etc/kubevmm
+  file:
+    path: "/etc/kubevmm"
+    state: directory
+    mode: '0755'
+
+- name: 创建目录 /etc/kubevmm/yamls
+  file:
+    path: "/etc/kubevmm/yamls"
+    state: directory
+    mode: '0755'
+
+- name: 复制 kubevirtResource.yaml 部署文件
+  copy:
+    src: "files/kubevirtResource.yaml"
+    dest: "/etc/kubevmm/yamls/kubevirtResource.yaml"
+
+- name: 复制 kubevirtANamespace.yaml 部署文件
+  copy:
+    src: "files/kubevirtANamespace.yaml"
+    dest: "/etc/kubevmm/yamls/kubevirtANamespace.yaml"
+
+- name: 创建临时目录存放YAML文件
+  file:
+    path: "/tmp/yaml"
+    state: directory
+    mode: '0755'
+
+- name: 复制 virt-tool-ubuntu.yaml 部署文件
+  copy:
+    src: "files/virt-tool-ubuntu.yaml"
+    dest: "/tmp/yaml/virt-tool-ubuntu.yaml"
+
+
+- name: Replace Version virt-tool-ubuntu.yaml
+  ansible.builtin.replace:
+    path: "/tmp/yaml/virt-tool-ubuntu.yaml"
+    regexp: 'v1.0.0'
+    replace: '{{ version }}'
+
+- name: Replace ImagePullPolicy in virt-tool-ubuntu.yaml
+  ansible.builtin.replace:
+    path: "/tmp/yaml/virt-tool-ubuntu.yaml"
+    regexp: 'Always'
+    replace: 'IfNotPresent'
+
+
+- name: 删除已存在的 virt-tool-ubuntu.yaml（如果存在）
+  kubernetes.core.k8s:
+    src: "/tmp/yaml/virt-tool-ubuntu.yaml"
+    state: absent
+
+
+- name: 部署 virt-tool-ubuntu.yaml
+  kubernetes.core.k8s:
+    src: "/tmp/yaml/virt-tool-ubuntu.yaml"
+    state: present
+  run_once: true  # 仅在控制节点执行一次

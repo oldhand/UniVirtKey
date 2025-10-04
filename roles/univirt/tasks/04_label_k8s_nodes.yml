@@ -1,0 +1,30 @@
+---
+- name: 获取所有Kubernetes节点详细信息
+  command: kubectl get nodes -o json
+  register: node_details
+  run_once: true
+
+- name: 解析节点信息
+  set_fact:
+    all_k8s_nodes: "{{ node_details.stdout | from_json | json_query('items') }}"
+  when:
+    - node_details.stdout | length > 0
+  run_once: true
+
+- name: 为所有节点添加标签和注解
+  block:
+    - name: 应用doslab/virt.tool.ubuntu标签
+      command: "kubectl label node {{ item.metadata.name }} doslab/virt.tool.ubuntu= --overwrite"
+      loop: "{{ all_k8s_nodes }}"
+
+    - name: 添加THISIP注解
+      command: >
+        kubectl annotate node {{ item.metadata.name }}
+        THISIP={{ item.status.addresses | selectattr('type', 'equalto', 'InternalIP') | map(attribute='address') | first }}
+        --overwrite
+      loop: "{{ all_k8s_nodes }}"
+  when:
+    - all_k8s_nodes is defined
+    - all_k8s_nodes | length > 0
+  delegate_to: "{{ inventory_hostname }}"
+  run_once: true

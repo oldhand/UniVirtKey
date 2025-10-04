@@ -1,0 +1,43 @@
+---
+- name: Install base virtualization packages
+  apt:
+    name:
+      - pkg-config
+      - python3-pip
+      - python3-libvirt
+      - python3-jmespath
+      - qemu-system-x86
+      - libvirt-daemon-system
+      - libvirt-dev
+      - virtinst
+      - libvirt-clients
+      - bridge-utils
+    state: present
+    install_recommends: no
+
+
+- name: 从离线目录安装Python依赖包到目标节点
+  pip:
+    name: "{{ python_packages }}"
+    state: present
+    executable: pip3
+    extra_args: "--no-index --find-links={{ offline_packages_dir }}"  # 离线安装参数
+  tags: [python_packages]
+  vars:
+    offline_packages_dir: "/tmp/pips"  # 目标节点上的离线包目录
+    python_packages:
+      - pyinstaller
+      - setuptools
+      - wheel
+      - threadpool
+      - prometheus_client
+      - kubernetes
+      - xmljson
+      - xmltodict
+      - watchdog
+      - pyyaml
+      - grpcio
+      - grpcio-tools
+      - protobuf
+      - psutil
+

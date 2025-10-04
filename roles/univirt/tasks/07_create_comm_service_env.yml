@@ -1,0 +1,50 @@
+---
+
+- name: Ensure target directory exists
+  ansible.builtin.file:
+    path: "/etc/uniVirt"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy sdsctl files to target hosts
+  ansible.builtin.synchronize:
+    src: "sdsctl/"
+    dest: "/etc/uniVirt/sdsctl/"
+    recursive: yes
+    delete: yes
+  become_user: root
+
+- name: Copy driverCheck files to target hosts
+  ansible.builtin.synchronize:
+    src: "driverCheck/"
+    dest: "/etc/uniVirt/driverCheck/"
+    recursive: yes
+    delete: yes
+  become_user: root
+
+- name: Execute create-comm-service.sh script
+  ansible.builtin.command:
+    cmd: "bash service.sh"
+  args:
+    chdir: "/etc/uniVirt/driverCheck"
+
+- name: Copy sdsctl files to target hosts
+  ansible.builtin.synchronize:
+    src: "sdsctl/commctl"
+    dest: "/usr/bin/commctl"
+    recursive: yes
+    delete: yes
+  become_user: root
+
+- name: Execute create-comm-service.sh script in offline mode
+  ansible.builtin.command:
+    cmd: "bash create-comm-service.sh offline"
+  args:
+    chdir: "/etc/uniVirt/sdsctl/grpcservice"
+
+- name: Restart kubestack-commctl service
+  ansible.builtin.systemd:
+    name: kubestack-commctl
+    state: restarted

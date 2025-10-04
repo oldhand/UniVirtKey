@@ -1,0 +1,50 @@
+---
+- name: 创建临时目录存放Python包
+  file:
+    path: "/tmp/pips"
+    state: directory
+    mode: '0755'
+
+- name: 查找所有Python包（whl）文件
+  ansible.builtin.find:
+    path: "{{ playbook_dir }}/pips/{{ ansible_distribution }}/"
+    patterns: '*.whl'
+    recurse: no
+  delegate_to: localhost
+  register: whl_files
+  run_once: true  # 仅在控制节点执行一次
+
+
+- name: 复制Python包到目标节点
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/pips//{{ ansible_distribution }}/{{ item | basename }}"
+    dest: "/tmp/pips/{{ item | basename }}"
+    mode: '0644'
+  with_items: "{{ whl_files.files | map(attribute='path') | list }}"
+  when: whl_files.files | length > 0  # 确保只在有文件时执行
+
+- name: 从离线目录安装Python依赖包到目标节点
+  pip:
+    name: "{{ python_packages }}"
+    state: present
+    executable: pip3
+    extra_args: "--no-index --find-links={{ offline_packages_dir }}"  # 离线安装参数
+  tags: [python_packages]
+  vars:
+    offline_packages_dir: "/tmp/pips"  # 目标节点上的离线包目录
+    python_packages:
+      - threadpool
+      - prometheus_client
+      - kubernetes==26.1.0
+      - xmljson
+      - xmltodict
+      - watchdog
+      - pyyaml
+      - grpcio
+      - grpcio-tools
+      - protobuf
+      - psutil
+      - pyinstaller
+      - tenacity
+      - requests
+

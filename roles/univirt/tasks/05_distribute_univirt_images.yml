@@ -1,0 +1,82 @@
+---
+- name: 创建临时目录存放镜像
+  file:
+    path: "/tmp/images/univirt"
+    state: directory
+    mode: '0755'
+
+- name: 创建目录存放univirt镜像
+  file:
+    path: "{{ playbook_dir }}/images/univirt/{{ ansible_architecture }}"
+    state: directory
+    mode: '0755'
+
+- name: 根据操作系统确定设置依赖的镜像
+  ansible.builtin.set_fact:
+    univirt_images:
+      - "univirt-ubuntu22-virtmonitor"
+      - "univirt-ubuntu22-libvirtwatcher"
+      - "univirt-ubuntu22-virtlet"
+      - "univirt-ubuntu22-virtctl"
+  when: ansible_distribution == "Ubuntu"
+
+- name: 处理UniVirt镜像（检查本地文件 -> 拉取 -> 保存）
+  block:
+    # 1. 检查本地是否存在当前镜像文件（每个镜像单独检查）
+    - name: 检查本地是否存在镜像文件
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/images/univirt/{{ ansible_architecture }}/{{ item }}_{{ version }}.tar"
+      register: image_file_stat
+      loop: "{{ univirt_images }}"  # 循环移到具体任务
+      run_once: true
+    # 2. 本地文件不存在时，拉取远程镜像（每个镜像单独拉取）
+    - name: 拉取远程镜像
+      ansible.builtin.command: "docker pull {{ base_repo }}/{{ item }}:{{ version }}"
+      register: pull_result
+      changed_when: "'Status: Downloaded newer image for' in pull_result.stdout"
+      when: not (image_file_stat.results | selectattr('item', 'equalto', item) | first).stat.exists
+      loop: "{{ univirt_images }}"  # 循环移到具体任务
+      run_once: true
+
+    # 3. 拉取成功后，保存镜像到本地目录（每个镜像单独保存）
+    - name: 将镜像保存到本地目录
+      ansible.builtin.command: >
+        docker save {{ base_repo }}/{{ item }}:{{ version }} 
+        -o {{ playbook_dir }}/images/univirt/{{ ansible_architecture }}/{{ item }}_{{ version }}.tar
+      changed_when: true
+      when:
+        - not (image_file_stat.results | selectattr('item', 'equalto', item) | first).stat.exists
+        - (pull_result.results | selectattr('item', 'equalto', item) | first) is succeeded
+      loop: "{{ univirt_images }}"  # 循环移到具体任务
+      run_once: true
+
+  # 移除block上的loop，仅保留条件判断
+  when: univirt_images is defined and univirt_images | length > 0
+  run_once: true
+
+
+- name: 查找所有属于univirt的镜像（tar）文件
+  ansible.builtin.find:
+    path: "{{ playbook_dir }}/images/univirt/{{ ansible_architecture }}/"
+    patterns: '*.tar'
+    recurse: no
+  delegate_to: localhost
+  register: tar_files
+  run_once: true
+
+
+- name: 复制 univirt 的镜像文件到目标节点
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/images/univirt/{{ ansible_architecture }}/{{ item | basename }}"
+    dest: "/tmp/images/univirt/{{ item | basename }}"
+    mode: '0644'
+  with_items: "{{ tar_files.files | map(attribute='path') | list }}"
+  when: tar_files.files | length > 0  # 确保只在有文件时执行
+
+
+- name: 加载univirt的镜像文件到 Docker
+  shell: "docker load -i /tmp/images/univirt/{{ item | basename }}"
+  with_items: "{{ tar_files.files | map(attribute='path') | list }}"
+  when: tar_files.files | length > 0  # 确保只在有文件时执行
+
+

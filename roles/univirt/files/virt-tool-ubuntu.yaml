@@ -1,0 +1,237 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: virt-tool-ubuntu
+  namespace: kube-system
+  labels:
+    app: virt-tool-ubuntu
+spec:
+  selector:
+    matchLabels:
+      app: virt-tool-ubuntu
+  template:
+    metadata:
+      labels:
+        app: virt-tool-ubuntu
+    spec:
+      # 添加容忍配置，允许在控制平面节点调度
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      nodeSelector:
+        doslab/virt.tool.ubuntu: ""
+      hostNetwork: true
+      containers:
+        - image: g-ubjg5602-docker.pkg.coding.net/iscas-system/containers/univirt-ubuntu22-virtctl:v1.0.0
+          command:
+            - bash
+            - 'virtctl-update-stuff.sh'
+          imagePullPolicy: Never
+          name: virtctl
+          securityContext:
+            runAsUser: 0
+            privileged: true
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+                - SYS_TIME
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log/
+            - name: kube
+              mountPath: /root/.kube/
+            - name: libvirt
+              mountPath: /var/lib/libvirt/
+            - name: etc
+              mountPath: /etc/
+            - name: cgroup
+              mountPath: /sys/fs/cgroup/
+            - name: varrun
+              mountPath: /var/run/
+            - name: usrbin
+              mountPath: /usr/bin
+            - name: kubebin
+              mountPath: /opt/kube/bin
+            - name: bashrc
+              mountPath: /root/.bashrc
+            - name: usrlib
+              mountPath: /usr/lib
+            - name: localbin
+              mountPath: /usr/local/bin
+            - name: ssh
+              mountPath: /root/.ssh
+            - name: bin
+              mountPath: /bin
+            - name: usersbin
+              mountPath: /user/sbin
+        - image: g-ubjg5602-docker.pkg.coding.net/iscas-system/containers/univirt-ubuntu22-virtlet:v1.0.0
+          command:
+            - bash
+            - 'virtlet-update-stuff.sh'
+          imagePullPolicy: Never
+          name: virtlet
+          securityContext:
+            runAsUser: 0
+            privileged: true
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+                - SYS_TIME
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log/
+            - name: kube
+              mountPath: /root/.kube/
+            - name: libvirt
+              mountPath: /var/lib/libvirt/
+            - name: etc
+              mountPath: /etc/
+            - name: cgroup
+              mountPath: /sys/fs/cgroup/
+            - name: varrun
+              mountPath: /var/run/
+            - name: usrbin
+              mountPath: /usr/bin
+            - name: kubebin
+              mountPath: /opt/kube/bin
+            - name: bashrc
+              mountPath: /root/.bashrc
+            - name: usrlib
+              mountPath: /usr/lib
+            - name: localbin
+              mountPath: /usr/local/bin
+            - name: ssh
+              mountPath: /root/.ssh
+            - name: bin
+              mountPath: /bin
+            - name: usersbin
+              mountPath: /user/sbin
+        - image: g-ubjg5602-docker.pkg.coding.net/iscas-system/containers/univirt-ubuntu22-libvirtwatcher:v1.0.0
+          command:
+            - bash
+            - 'watcher.sh'
+          imagePullPolicy: Never
+          name: libvirtwatcher
+          securityContext:
+            runAsUser: 0
+            privileged: true
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+                - SYS_TIME
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log/
+            - name: kube
+              mountPath: /root/.kube/
+            - name: libvirt
+              mountPath: /var/lib/libvirt/
+            - name: etc
+              mountPath: /etc/
+            - name: cgroup
+              mountPath: /sys/fs/cgroup/
+            - name: varrun
+              mountPath: /var/run/
+            - name: usrbin
+              mountPath: /usr/bin
+            - name: kubebin
+              mountPath: /opt/kube/bin
+            - name: bashrc
+              mountPath: /root/.bashrc
+            - name: usrlib
+              mountPath: /usr/lib
+            - name: localbin
+              mountPath: /usr/local/bin
+            - name: ssh
+              mountPath: /root/.ssh
+            - name: bin
+              mountPath: /bin
+            - name: usersbin
+              mountPath: /user/sbin
+        - image: g-ubjg5602-docker.pkg.coding.net/iscas-system/containers/univirt-ubuntu22-virtmonitor:v1.0.0
+          command:
+            - bash
+            - 'monitor.sh'
+          imagePullPolicy: Never
+          name: virtmonitor
+          securityContext:
+            runAsUser: 0
+            privileged: true
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+                - SYS_TIME
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log/
+            - name: kube
+              mountPath: /root/.kube/
+            - name: libvirt
+              mountPath: /var/lib/libvirt/
+            - name: etc
+              mountPath: /etc/
+            - name: cgroup
+              mountPath: /sys/fs/cgroup/
+            - name: varrun
+              mountPath: /var/run/
+            - name: usrbin
+              mountPath: /usr/bin
+            - name: kubebin
+              mountPath: /opt/kube/bin
+            - name: bashrc
+              mountPath: /root/.bashrc
+            - name: usrlib
+              mountPath: /usr/lib
+            - name: localbin
+              mountPath: /usr/local/bin
+            - name: ssh
+              mountPath: /root/.ssh
+            - name: bin
+              mountPath: /bin
+            - name: usersbin
+              mountPath: /user/sbin
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log/
+        - name: kube
+          hostPath:
+            path: /root/.kube/
+        - name: libvirt
+          hostPath:
+            path: /var/lib/libvirt/
+        - name: varrun
+          hostPath:
+            path: /var/run/
+        - name: etc
+          hostPath:
+            path: /etc/
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup/
+        - name: usrbin
+          hostPath:
+            path: /usr/bin/
+        - name: kubebin
+          hostPath:
+            path: /opt/kube/bin
+        - name: bashrc
+          hostPath:
+            path: /root/.bashrc
+        - name: usrlib
+          hostPath:
+            path: /usr/lib
+        - name: localbin
+          hostPath:
+            path: /usr/local/bin
+        - name: ssh
+          hostPath:
+            path: /root/.ssh
+        - name: bin
+          hostPath:
+            path: /bin
+        - name: usersbin
+          hostPath:
+            path: /usr/sbin
